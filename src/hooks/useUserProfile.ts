@@ -18,6 +18,7 @@ export interface UserProfile {
   target_savings: number | null;
   weekday_budget: any;
   weekend_budget: any;
+  ai_persona: string;
   created_at: string;
   updated_at: string;
 }

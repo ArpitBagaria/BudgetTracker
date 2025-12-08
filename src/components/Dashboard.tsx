@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Home, Target, Trophy, TrendingUp } from 'lucide-react';
+import { Plus, Home, Target, Trophy, TrendingUp, Bot } from 'lucide-react';
 import { Header } from './Header';
 import { DashboardStats } from './DashboardStats';
 import { ExpenseList } from './ExpenseList';
@@ -7,12 +7,13 @@ import { SavingsGoals } from './SavingsGoals';
 import { Achievements } from './Achievements';
 import { AddExpenseModal } from './AddExpenseModal';
 import { MotivationalBanner } from './MotivationalBanner';
+import { AICompanionSelector } from './AICompanionSelector';
 import { useGamification } from '../hooks/useGamification';
 import { useExpenses } from '../hooks/useExpenses';
 import { useSavingsGoals } from '../hooks/useSavingsGoals';
 import { useUserProfile } from '../hooks/useUserProfile';
 
-type Tab = 'home' | 'goals' | 'achievements';
+type Tab = 'home' | 'goals' | 'achievements' | 'companion';
 
 export function Dashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('home');
@@ -81,6 +82,12 @@ export function Dashboard() {
             active={activeTab === 'achievements'}
             onClick={() => setActiveTab('achievements')}
           />
+          <TabButton
+            icon={<Bot className="w-5 h-5" />}
+            label="Companion"
+            active={activeTab === 'companion'}
+            onClick={() => setActiveTab('companion')}
+          />
         </div>
 
         {activeTab === 'home' && (
@@ -106,6 +113,8 @@ export function Dashboard() {
         {activeTab === 'goals' && <SavingsGoals />}
 
         {activeTab === 'achievements' && <Achievements />}
+
+        {activeTab === 'companion' && <AICompanionSelector />}
       </main>
 
       <button
