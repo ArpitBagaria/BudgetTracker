@@ -30,7 +30,7 @@ Deno.serve(async (req: Request) => {
       'Content-Type': 'application/json',
     };
 
-    const userResponse = await fetch(`${supabaseUrl}/rest/v1/user_profiles?id=eq.${userId}&select=username,display_name`, {
+    const userResponse = await fetch(`${supabaseUrl}/rest/v1/user_profiles?id=eq.${userId}&select=username,display_name,monthly_budget,current_streak`, {
       headers: supabaseHeaders,
     });
 
@@ -46,43 +46,92 @@ Deno.serve(async (req: Request) => {
 
     const recentExpenses = await expensesResponse.json();
 
+    let aiResponseData;
     const n8nWebhookUrl = 'https://arpitbagarla.app.n8n.cloud/webhook/budget-chatbot-gemini';
 
-    const webhookResponse = await fetch(n8nWebhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        userMessage: message,
-        userId: userId,
-        userName: user?.display_name || user?.username || 'User',
-        companionName: companionName || 'Companion',
-        persona: persona || 'roaster',
-        conversationHistory: conversationHistory || [],
-        userData: {
-          username: user?.username,
-          displayName: user?.display_name,
-          recentExpenses: recentExpenses || []
-        }
-      })
-    });
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
 
-    const aiResponse = await webhookResponse.json();
+      const webhookResponse = await fetch(n8nWebhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userMessage: message,
+          userId: userId,
+          userName: user?.display_name || user?.username || 'User',
+          companionName: companionName || 'Companion',
+          persona: persona || 'roaster',
+          conversationHistory: conversationHistory || [],
+          userData: {
+            username: user?.username,
+            displayName: user?.display_name,
+            recentExpenses: recentExpenses || [],
+            monthlyBudget: user?.monthly_budget,
+            currentStreak: user?.current_streak
+          }
+        }),
+        signal: controller.signal
+      });
 
-    await fetch(`${supabaseUrl}/rest/v1/chat_logs`, {
-      method: 'POST',
-      headers: supabaseHeaders,
-      body: JSON.stringify({
-        user_id: userId,
-        message: message,
-        response: aiResponse.message || aiResponse.response || JSON.stringify(aiResponse),
-        created_at: new Date().toISOString()
-      })
-    });
+      clearTimeout(timeoutId);
+
+      if (webhookResponse.ok) {
+        aiResponseData = await webhookResponse.json();
+      } else {
+        throw new Error('Webhook returned error status');
+      }
+    } catch (webhookError) {
+      console.error('Webhook error:', webhookError);
+
+      const fallbackResponses = {
+        roaster: [
+          "Look, the AI service is taking a break (unlike your spending habits). But seriously, you're doing great! Keep tracking those expenses.",
+          "My fancy AI brain is offline, but I can still tell you're crushing it with your budgeting!",
+          "The AI gods are temporarily unavailable. But hey, you logged an expense - that's what matters!"
+        ],
+        hype_man: [
+          "YES! Even though my AI connection is down, YOU'RE STILL A BUDGETING SUPERSTAR!",
+          "The system might be having issues, but YOUR dedication to tracking expenses is UNSTOPPABLE!",
+          "Technical difficulties can't stop YOUR AMAZING financial journey!"
+        ],
+        wise_sage: [
+          "While the AI service rests, remember: the true wisdom comes from your consistent effort in tracking your finances.",
+          "A temporary setback in technology does not diminish your progress on the path to financial wellness.",
+          "The AI may be unavailable, but your commitment to financial mindfulness remains strong."
+        ]
+      };
+
+      const personaKey = (persona || 'roaster') as keyof typeof fallbackResponses;
+      const responses = fallbackResponses[personaKey] || fallbackResponses.roaster;
+      const fallbackMessage = responses[Math.floor(Math.random() * responses.length)];
+
+      aiResponseData = {
+        message: fallbackMessage,
+        success: true,
+        fallback: true
+      };
+    }
+
+    try {
+      await fetch(`${supabaseUrl}/rest/v1/chat_logs`, {
+        method: 'POST',
+        headers: supabaseHeaders,
+        body: JSON.stringify({
+          user_id: userId,
+          message: message,
+          response: aiResponseData.message || aiResponseData.response || JSON.stringify(aiResponseData),
+          created_at: new Date().toISOString()
+        })
+      });
+    } catch (logError) {
+      console.error('Error logging chat:', logError);
+    }
 
     return new Response(
-      JSON.stringify(aiResponse),
+      JSON.stringify(aiResponseData),
       {
         headers: {
           ...corsHeaders,
@@ -97,15 +146,15 @@ Deno.serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         error: error.message || 'An error occurred',
-        message: "Sorry, I'm having trouble processing that right now. Please try again!",
-        success: false
+        message: "I'm having a moment here, but don't let that stop your budgeting momentum!",
+        success: true
       }),
       {
         headers: {
           ...corsHeaders,
           'Content-Type': 'application/json',
         },
-        status: 400
+        status: 200
       }
     );
   }
