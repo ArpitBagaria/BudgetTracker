@@ -24,14 +24,14 @@ serve(async (req) => {
 
     // Get user data from database
     const { data: userData } = await supabase
-      .from('users')
-      .select('name, email')
+      .from('user_profiles')
+      .select('username, display_name')
       .eq('id', userId)
       .single()
 
     // Get recent transactions (last 10)
     const { data: recentTransactions } = await supabase
-      .from('transactions')
+      .from('expenses')
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
@@ -52,10 +52,11 @@ serve(async (req) => {
       body: JSON.stringify({
         userMessage: message,
         userId: userId,
-        userName: userData?.name || 'User',
+        userName: userData?.display_name || userData?.username || 'User',
         conversationHistory: conversationHistory || [],
         userData: {
-          email: userData?.email,
+          username: userData?.username,
+          displayName: userData?.display_name,
           recentTransactions: recentTransactions || []
         }
       })
