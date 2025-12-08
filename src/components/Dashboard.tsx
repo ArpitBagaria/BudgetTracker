@@ -9,7 +9,6 @@ import { AddExpenseModal } from './AddExpenseModal';
 import { MotivationalBanner } from './MotivationalBanner';
 import { AICompanionSelector } from './AICompanionSelector';
 import { CompanionChatWidget } from './CompanionChatWidget';
-import { ChatBot } from './chatbot';
 import { useGamification } from '../hooks/useGamification';
 import { useExpenses } from '../hooks/useExpenses';
 import { useSavingsGoals } from '../hooks/useSavingsGoals';
@@ -120,7 +119,6 @@ export function Dashboard() {
       </main>
 
       <CompanionChatWidget />
-      <ChatBot />
 
       <AddExpenseModal
         isOpen={showAddExpense}

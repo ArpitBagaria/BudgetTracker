@@ -15,7 +15,7 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { message, userId, conversationHistory } = await req.json();
+    const { message, userId, conversationHistory, persona, companionName } = await req.json();
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -57,6 +57,8 @@ Deno.serve(async (req: Request) => {
         userMessage: message,
         userId: userId,
         userName: user?.display_name || user?.username || 'User',
+        companionName: companionName || 'Companion',
+        persona: persona || 'roaster',
         conversationHistory: conversationHistory || [],
         userData: {
           username: user?.username,

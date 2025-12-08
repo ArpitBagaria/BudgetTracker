@@ -4,8 +4,8 @@ import { useUserProfile } from '../hooks/useUserProfile';
 import { useCompanionChat } from '../hooks/useCompanionChat';
 import { useExpenses } from '../hooks/useExpenses';
 import { useSavingsGoals } from '../hooks/useSavingsGoals';
-import { generateChatResponse } from '../utils/chatResponses';
 import { CompanionPersona } from '../utils/companionMessages';
+import { supabase } from '../lib/supabase';
 
 export function CompanionChatWidget() {
   const [isOpen, setIsOpen] = useState(false);
@@ -65,22 +65,38 @@ export function CompanionChatWidget() {
 
     setIsTyping(true);
 
-    setTimeout(async () => {
-      const thisMonth = new Date().getMonth();
-      const monthExpenses = expenses.filter(e => new Date(e.date).getMonth() === thisMonth);
-      const totalExpenses = monthExpenses.reduce((sum, e) => sum + e.amount, 0);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
 
-      const response = generateChatResponse(userMsg, persona, {
-        profile,
-        totalExpenses,
-        monthlyBudget: profile.monthly_budget || 0,
-        currentStreak: profile.current_streak,
-        goalsCount: goals.length,
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      const { data, error } = await supabase.functions.invoke('chatbot-gemini', {
+        body: {
+          message: userMsg,
+          userId: user.id,
+          persona: persona,
+          companionName: companionName,
+          conversationHistory: messages.map(m => ({
+            role: m.sender === 'user' ? 'user' : 'assistant',
+            content: m.message
+          }))
+        }
       });
 
-      await sendMessage(response, 'companion', 'chat');
+      if (error) throw error;
+
+      const aiResponse = data.message || data.response || "I'm here to help with your budget!";
+      await sendMessage(aiResponse, 'companion', 'chat');
+
+    } catch (error) {
+      console.error('Error:', error);
+      const errorMsg = "Sorry, I'm having trouble processing that right now. Please try again!";
+      await sendMessage(errorMsg, 'companion', 'chat');
+    } finally {
       setIsTyping(false);
-    }, 1000);
+    }
   };
 
   const getJourneyStats = () => {
