@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { X, Sparkles, DollarSign } from 'lucide-react';
 import { useExpenses } from '../hooks/useExpenses';
 import { useGamification } from '../hooks/useGamification';
+import { useCompanionChat } from '../hooks/useCompanionChat';
+import { useUserProfile } from '../hooks/useUserProfile';
+import { getCompanionMessage, CompanionPersona } from '../utils/companionMessages';
 
 interface AddExpenseModalProps {
   isOpen: boolean;
@@ -18,6 +21,8 @@ export function AddExpenseModal({ isOpen, onClose, onExpenseAdded }: AddExpenseM
   const [loading, setLoading] = useState(false);
   const { categories, addExpense, categorizeWithAI } = useExpenses();
   const { addPoints, updateStreak } = useGamification();
+  const { sendMessage } = useCompanionChat();
+  const { profile } = useUserProfile();
 
   if (!isOpen) return null;
 
@@ -44,6 +49,12 @@ export function AddExpenseModal({ isOpen, onClose, onExpenseAdded }: AddExpenseM
 
       await addPoints(5, 'Expense logged');
       await updateStreak();
+
+      if (profile) {
+        const persona = (profile.ai_persona || 'roaster') as CompanionPersona;
+        const companionResponse = getCompanionMessage(persona, 'expense_added');
+        await sendMessage(companionResponse, 'companion', 'expense_added');
+      }
 
       onExpenseAdded();
       setAmount('');

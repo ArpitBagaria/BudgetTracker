@@ -19,6 +19,7 @@ export interface UserProfile {
   weekday_budget: any;
   weekend_budget: any;
   ai_persona: string;
+  companion_name: string | null;
   created_at: string;
   updated_at: string;
 }

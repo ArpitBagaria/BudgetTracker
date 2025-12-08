@@ -8,6 +8,7 @@ import { Achievements } from './Achievements';
 import { AddExpenseModal } from './AddExpenseModal';
 import { MotivationalBanner } from './MotivationalBanner';
 import { AICompanionSelector } from './AICompanionSelector';
+import { CompanionChatWidget } from './CompanionChatWidget';
 import { useGamification } from '../hooks/useGamification';
 import { useExpenses } from '../hooks/useExpenses';
 import { useSavingsGoals } from '../hooks/useSavingsGoals';
@@ -117,12 +118,7 @@ export function Dashboard() {
         {activeTab === 'companion' && <AICompanionSelector />}
       </main>
 
-      <button
-        onClick={() => setShowAddExpense(true)}
-        className="fixed bottom-6 right-6 w-16 h-16 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white rounded-full shadow-2xl hover:shadow-3xl hover:scale-110 transition flex items-center justify-center z-40"
-      >
-        <Plus className="w-8 h-8" />
-      </button>
+      <CompanionChatWidget />
 
       <AddExpenseModal
         isOpen={showAddExpense}

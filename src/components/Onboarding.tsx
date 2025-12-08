@@ -13,6 +13,9 @@ import {
   ArrowRight,
   ArrowLeft,
   CheckCircle2,
+  Zap,
+  Megaphone,
+  Bot,
 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
@@ -53,6 +56,8 @@ export function Onboarding({ onComplete }: OnboardingProps) {
   const [weekendExpenses, setWeekendExpenses] = useState<ExpenseCategory[]>([]);
   const [targetSavings, setTargetSavings] = useState('');
   const [currentQuote, setCurrentQuote] = useState<any>(null);
+  const [aiPersona, setAiPersona] = useState<'roaster' | 'hype_man' | 'wise_sage'>('roaster');
+  const [companionName, setCompanionName] = useState('');
 
   useEffect(() => {
     setCurrentQuote(getRandomQuote());
@@ -111,6 +116,8 @@ export function Onboarding({ onComplete }: OnboardingProps) {
       weekday_budget: weekdayExpenses as any,
       weekend_budget: weekendExpenses as any,
       monthly_budget: budget.totalExpenses,
+      ai_persona: aiPersona,
+      companion_name: companionName || getDefaultCompanionName(aiPersona),
     });
 
     await supabase.from('financial_plan').upsert({
@@ -137,6 +144,8 @@ export function Onboarding({ onComplete }: OnboardingProps) {
         return weekendExpenses.length > 0 && weekendExpenses.every(e => e.amount > 0);
       case 4:
         return targetSavings && parseFloat(targetSavings) > 0;
+      case 7:
+        return aiPersona && companionName.trim().length > 0;
       default:
         return true;
     }
@@ -146,7 +155,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 flex items-center justify-center p-4">
       <div className="w-full max-w-3xl">
         <div className="mb-8 flex items-center justify-center gap-2">
-          {[1, 2, 3, 4, 5, 6].map(i => (
+          {[1, 2, 3, 4, 5, 6, 7].map(i => (
             <div
               key={i}
               className={`h-2 rounded-full transition-all duration-300 ${
@@ -205,6 +214,14 @@ export function Onboarding({ onComplete }: OnboardingProps) {
               }
             />
           )}
+          {step === 7 && (
+            <Step7
+              aiPersona={aiPersona}
+              companionName={companionName}
+              onPersonaChange={setAiPersona}
+              onNameChange={setCompanionName}
+            />
+          )}
 
           <div className="flex gap-4 mt-8">
             {step > 1 && (
@@ -216,7 +233,7 @@ export function Onboarding({ onComplete }: OnboardingProps) {
                 Back
               </button>
             )}
-            {step < 6 ? (
+            {step < 7 ? (
               <button
                 onClick={() => setStep(step + 1)}
                 disabled={!canProceed()}
@@ -550,6 +567,138 @@ function Step6({ savings }: { savings: number }) {
           "Someone is sitting in the shade today because someone planted a tree a long time ago." - Warren Buffett
         </p>
       </div>
+    </div>
+  );
+}
+
+function getDefaultCompanionName(persona: 'roaster' | 'hype_man' | 'wise_sage'): string {
+  switch (persona) {
+    case 'roaster':
+      return 'Blaze';
+    case 'hype_man':
+      return 'Max';
+    case 'wise_sage':
+      return 'Sage';
+    default:
+      return 'Buddy';
+  }
+}
+
+function Step7({
+  aiPersona,
+  companionName,
+  onPersonaChange,
+  onNameChange,
+}: {
+  aiPersona: 'roaster' | 'hype_man' | 'wise_sage';
+  companionName: string;
+  onPersonaChange: (persona: 'roaster' | 'hype_man' | 'wise_sage') => void;
+  onNameChange: (name: string) => void;
+}) {
+  const companions = [
+    {
+      id: 'roaster' as const,
+      name: 'Roast Master',
+      icon: <Zap className="w-8 h-8" />,
+      description: 'Tough love and sarcastic feedback to keep you accountable',
+      color: 'text-red-600',
+      bgGradient: 'from-red-50 to-orange-50',
+      borderColor: 'border-red-500',
+      preview: "Another coffee? Your wallet is crying harder than you did at that sad movie."
+    },
+    {
+      id: 'hype_man' as const,
+      name: 'Hype Man',
+      icon: <Megaphone className="w-8 h-8" />,
+      description: 'Encouraging and motivational support for every win',
+      color: 'text-blue-600',
+      bgGradient: 'from-blue-50 to-cyan-50',
+      borderColor: 'border-blue-500',
+      preview: "YES! You logged that expense! You're absolutely crushing it today!"
+    },
+    {
+      id: 'wise_sage' as const,
+      name: 'Wise Sage',
+      icon: <Sparkles className="w-8 h-8" />,
+      description: 'Thoughtful wisdom and mindful financial guidance',
+      color: 'text-emerald-600',
+      bgGradient: 'from-emerald-50 to-teal-50',
+      borderColor: 'border-emerald-500',
+      preview: "Consider this: every mindful spending choice today shapes your tomorrow."
+    }
+  ];
+
+  const selectedCompanion = companions.find(c => c.id === aiPersona);
+
+  return (
+    <div className="space-y-6">
+      <div className="text-center mb-8">
+        <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-pink-500 to-purple-500 rounded-2xl mb-4">
+          <Bot className="w-8 h-8 text-white" />
+        </div>
+        <h2 className="text-3xl font-bold text-gray-900 mb-2">Meet your AI companion</h2>
+        <p className="text-gray-600">Choose a personality to guide your financial journey</p>
+      </div>
+
+      <div className="space-y-3">
+        {companions.map((companion) => {
+          const isSelected = aiPersona === companion.id;
+
+          return (
+            <button
+              key={companion.id}
+              onClick={() => onPersonaChange(companion.id)}
+              className={`w-full text-left p-5 rounded-xl border-2 transition-all ${
+                isSelected
+                  ? `bg-gradient-to-r ${companion.bgGradient} ${companion.borderColor} border-l-4 shadow-md`
+                  : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+              }`}
+            >
+              <div className="flex items-start gap-4">
+                <div
+                  className={`flex-shrink-0 w-14 h-14 rounded-xl flex items-center justify-center ${
+                    isSelected ? 'bg-white shadow-sm' : 'bg-white/70'
+                  }`}
+                >
+                  <div className={companion.color}>{companion.icon}</div>
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-bold text-gray-900 mb-1">
+                    {companion.name}
+                  </h3>
+                  <p className="text-sm text-gray-600 mb-2">{companion.description}</p>
+
+                  {isSelected && (
+                    <div className="bg-white/70 rounded-lg p-3 border border-gray-200">
+                      <p className="text-sm text-gray-700 italic">"{companion.preview}"</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      {selectedCompanion && (
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Give your companion a name
+          </label>
+          <input
+            type="text"
+            value={companionName}
+            onChange={(e) => onNameChange(e.target.value)}
+            placeholder={`e.g., ${getDefaultCompanionName(aiPersona)}`}
+            maxLength={20}
+            className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-lg"
+          />
+          <p className="mt-2 text-sm text-gray-500">
+            This is what your companion will be called throughout the app
+          </p>
+        </div>
+      )}
     </div>
   );
 }
