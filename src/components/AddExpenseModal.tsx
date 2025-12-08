@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { X, Sparkles, DollarSign } from 'lucide-react';
 import { useExpenses } from '../hooks/useExpenses';
 import { useGamification } from '../hooks/useGamification';
+import { useUserProfile } from '../hooks/useUserProfile';
+import { supabase } from '../lib/supabase';
 
 interface AddExpenseModalProps {
   isOpen: boolean;
@@ -16,8 +18,10 @@ export function AddExpenseModal({ isOpen, onClose, onExpenseAdded }: AddExpenseM
   const [useAI, setUseAI] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('');
   const [loading, setLoading] = useState(false);
-  const { categories, addExpense, categorizeWithAI } = useExpenses();
+  const [roastMessage, setRoastMessage] = useState<{ message: string; type: string } | null>(null);
+  const { categories, addExpense, categorizeWithAI, expenses } = useExpenses();
   const { addPoints, updateStreak } = useGamification();
+  const { profile } = useUserProfile();
 
   if (!isOpen) return null;
 
@@ -28,13 +32,17 @@ export function AddExpenseModal({ isOpen, onClose, onExpenseAdded }: AddExpenseM
     try {
       let categoryId = selectedCategory;
       let isAICategorized = false;
+      let categoryName = 'Other';
 
       if (useAI && description) {
         categoryId = await categorizeWithAI(description);
         isAICategorized = true;
       }
 
-      await addExpense({
+      const category = categories.find(c => c.id === categoryId);
+      categoryName = category?.name || 'Other';
+
+      const { data: expenseData } = await addExpense({
         amount: parseFloat(amount),
         description,
         category_id: categoryId || categories[0]?.id,
@@ -45,18 +53,104 @@ export function AddExpenseModal({ isOpen, onClose, onExpenseAdded }: AddExpenseM
       await addPoints(5, 'Expense logged');
       await updateStreak();
 
-      onExpenseAdded();
-      setAmount('');
-      setDescription('');
-      setDate(new Date().toISOString().split('T')[0]);
-      setSelectedCategory('');
-      onClose();
+      if (profile && expenseData) {
+        const thisMonth = new Date().getMonth();
+        const monthExpenses = expenses.filter(e => new Date(e.date).getMonth() === thisMonth);
+        const monthlySpent = monthExpenses.reduce((sum, e) => sum + e.amount, 0) + parseFloat(amount);
+
+        const roastResponse = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-roast`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              amount: parseFloat(amount),
+              description,
+              category: categoryName,
+              persona: profile.ai_persona,
+              monthlyIncome: profile.monthly_income,
+              monthlySpent,
+            }),
+          }
+        );
+
+        if (roastResponse.ok) {
+          const roast = await roastResponse.json();
+          setRoastMessage(roast);
+
+          await supabase.from('ai_roasts').insert({
+            user_id: profile.id,
+            expense_id: expenseData.id,
+            message: roast.message,
+            type: roast.type,
+          });
+
+          setTimeout(() => {
+            setRoastMessage(null);
+            onExpenseAdded();
+            setAmount('');
+            setDescription('');
+            setDate(new Date().toISOString().split('T')[0]);
+            setSelectedCategory('');
+            onClose();
+          }, 4000);
+        } else {
+          onExpenseAdded();
+          setAmount('');
+          setDescription('');
+          setDate(new Date().toISOString().split('T')[0]);
+          setSelectedCategory('');
+          onClose();
+        }
+      } else {
+        onExpenseAdded();
+        setAmount('');
+        setDescription('');
+        setDate(new Date().toISOString().split('T')[0]);
+        setSelectedCategory('');
+        onClose();
+      }
     } catch (error) {
       console.error('Error adding expense:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  if (roastMessage) {
+    const getBgColor = () => {
+      switch (roastMessage.type) {
+        case 'roast': return 'from-red-500 to-orange-500';
+        case 'hype': return 'from-emerald-500 to-cyan-500';
+        case 'warning': return 'from-yellow-500 to-orange-500';
+        default: return 'from-purple-500 to-pink-500';
+      }
+    };
+
+    const getEmoji = () => {
+      switch (roastMessage.type) {
+        case 'roast': return '🔥';
+        case 'hype': return '🚀';
+        case 'warning': return '⚠️';
+        default: return '💭';
+      }
+    };
+
+    return (
+      <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-3xl max-w-lg w-full p-8 shadow-2xl animate-bounce-in">
+          <div className={`text-6xl text-center mb-4`}>{getEmoji()}</div>
+          <div className={`bg-gradient-to-r ${getBgColor()} p-6 rounded-2xl text-white text-center`}>
+            <p className="text-lg font-semibold">{roastMessage.message}</p>
+          </div>
+          <p className="text-center text-sm text-gray-500 mt-4">Closing in a moment...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">

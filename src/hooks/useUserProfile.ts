@@ -13,6 +13,17 @@ export interface UserProfile {
   best_streak: number;
   last_activity_date: string | null;
   monthly_budget: number | null;
+  onboarding_completed: boolean;
+  monthly_income: number | null;
+  target_savings: number | null;
+  weekday_budget: any;
+  weekend_budget: any;
+  ai_persona: string;
+  theme_preference: string;
+  dark_mode: boolean;
+  squad_id: string | null;
+  streak_freezes: number;
+  loot_boxes: number;
   created_at: string;
   updated_at: string;
 }
