@@ -1,11 +1,14 @@
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthPage } from './components/AuthPage';
 import { Dashboard } from './components/Dashboard';
+import { Onboarding } from './components/Onboarding';
+import { useUserProfile } from './hooks/useUserProfile';
 
 function AppContent() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
+  const { profile, loading: profileLoading } = useUserProfile();
 
-  if (loading) {
+  if (authLoading || (user && profileLoading)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 flex items-center justify-center">
         <div className="text-center">
@@ -16,7 +19,15 @@ function AppContent() {
     );
   }
 
-  return user ? <Dashboard /> : <AuthPage />;
+  if (!user) {
+    return <AuthPage />;
+  }
+
+  if (profile && !profile.onboarding_completed) {
+    return <Onboarding onComplete={() => window.location.reload()} />;
+  }
+
+  return <Dashboard />;
 }
 
 function App() {

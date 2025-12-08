@@ -18,12 +18,6 @@ export interface UserProfile {
   target_savings: number | null;
   weekday_budget: any;
   weekend_budget: any;
-  ai_persona: string;
-  theme_preference: string;
-  dark_mode: boolean;
-  squad_id: string | null;
-  streak_freezes: number;
-  loot_boxes: number;
   created_at: string;
   updated_at: string;
 }

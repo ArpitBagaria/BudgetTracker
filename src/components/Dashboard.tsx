@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Plus, Home, Target, Trophy, TrendingUp } from 'lucide-react';
 import { Header } from './Header';
 import { DashboardStats } from './DashboardStats';
@@ -6,7 +6,7 @@ import { ExpenseList } from './ExpenseList';
 import { SavingsGoals } from './SavingsGoals';
 import { Achievements } from './Achievements';
 import { AddExpenseModal } from './AddExpenseModal';
-import { Onboarding } from './Onboarding';
+import { MotivationalBanner } from './MotivationalBanner';
 import { useGamification } from '../hooks/useGamification';
 import { useExpenses } from '../hooks/useExpenses';
 import { useSavingsGoals } from '../hooks/useSavingsGoals';
@@ -17,12 +17,34 @@ type Tab = 'home' | 'goals' | 'achievements';
 export function Dashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [showAddExpense, setShowAddExpense] = useState(false);
-  const [showLevelUp, _setShowLevelUp] = useState(false);
-  const [newLevel, _setNewLevel] = useState(0);
-  const { checkAndAwardAchievements } = useGamification();
+  const [showLevelUp, setShowLevelUp] = useState(false);
+  const [newLevel, setNewLevel] = useState(0);
+  const { checkAndAwardAchievements, profile } = useGamification();
   const { expenses, refetch: refetchExpenses } = useExpenses();
   const { goals } = useSavingsGoals();
-  const { profile: userProfile, loading: profileLoading } = useUserProfile();
+  const { profile: userProfile } = useUserProfile();
+
+  const quoteContext = useMemo(() => {
+    if (!userProfile || !expenses.length) return 'saving_well';
+
+    const thisMonth = new Date().getMonth();
+    const monthExpenses = expenses.filter(e => new Date(e.date).getMonth() === thisMonth);
+    const monthTotal = monthExpenses.reduce((sum, e) => sum + e.amount, 0);
+
+    if (userProfile.monthly_budget && monthTotal > userProfile.monthly_budget * 1.1) {
+      return 'overspending';
+    }
+
+    if (profile && profile.current_streak > 7) {
+      return 'streak';
+    }
+
+    if (userProfile.target_savings && monthTotal < (userProfile.monthly_income || 0) - userProfile.target_savings) {
+      return 'saving_well';
+    }
+
+    return 'expense_added';
+  }, [expenses, userProfile, profile]);
 
   const handleExpenseAdded = async () => {
     await refetchExpenses();
@@ -34,21 +56,6 @@ export function Dashboard() {
       }, 1000);
     }
   };
-
-  if (profileLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!userProfile?.onboarding_completed) {
-    return <Onboarding />;
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
@@ -78,6 +85,7 @@ export function Dashboard() {
 
         {activeTab === 'home' && (
           <div className="space-y-8">
+            <MotivationalBanner context={quoteContext} />
             <DashboardStats />
 
             <div className="flex items-center justify-between">
@@ -124,7 +132,7 @@ export function Dashboard() {
               You've reached Level {newLevel}
             </p>
             <button
-              onClick={() => _setShowLevelUp(false)}
+              onClick={() => setShowLevelUp(false)}
               className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-semibold rounded-xl hover:from-emerald-600 hover:to-cyan-600 transition"
             >
               Awesome!

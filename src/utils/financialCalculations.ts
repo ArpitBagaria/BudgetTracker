@@ -1,90 +1,132 @@
 export interface ExpenseCategory {
   name: string;
   amount: number;
-  category: 'necessity' | 'discretionary';
+  frequency: 'daily' | 'weekly';
 }
 
-export interface BudgetAnalysis {
+export interface BudgetPlan {
+  monthlyIncome: number;
   totalExpenses: number;
+  weekdayExpenses: number;
+  weekendExpenses: number;
+  targetSavings: number;
   actualSavings: number;
   savingsShortfall: number;
+  necessities: ExpenseCategory[];
+  discretionary: ExpenseCategory[];
   suggestions: string[];
+}
+
+export function calculateMonthlyExpenses(
+  weekdayCategories: ExpenseCategory[],
+  weekendCategories: ExpenseCategory[]
+): { weekday: number; weekend: number; total: number } {
+  const weekdayTotal = weekdayCategories.reduce((sum, cat) => {
+    return sum + (cat.amount * 5 * 4.33);
+  }, 0);
+
+  const weekendTotal = weekendCategories.reduce((sum, cat) => {
+    return sum + (cat.amount * 2 * 4.33);
+  }, 0);
+
+  return {
+    weekday: weekdayTotal,
+    weekend: weekendTotal,
+    total: weekdayTotal + weekendTotal,
+  };
 }
 
 export function analyzeBudget(
   monthlyIncome: number,
-  weekdayExpenses: ExpenseCategory[],
-  weekendExpenses: ExpenseCategory[],
+  weekdayCategories: ExpenseCategory[],
+  weekendCategories: ExpenseCategory[],
   targetSavings: number
-): BudgetAnalysis {
-  const weekdayTotal = weekdayExpenses.reduce((sum, exp) => sum + exp.amount, 0) * 5 * 4;
-  const weekendTotal = weekendExpenses.reduce((sum, exp) => sum + exp.amount, 0) * 2 * 4;
-  const totalExpenses = weekdayTotal + weekendTotal;
-  const actualSavings = monthlyIncome - totalExpenses;
+): BudgetPlan {
+  const expenses = calculateMonthlyExpenses(weekdayCategories, weekendCategories);
+  const actualSavings = monthlyIncome - expenses.total;
   const savingsShortfall = targetSavings - actualSavings;
+
+  const necessityKeywords = ['commute', 'grocery', 'groceries', 'rent', 'bills'];
+  const necessities = [...weekdayCategories, ...weekendCategories].filter(cat =>
+    necessityKeywords.some(keyword => cat.name.toLowerCase().includes(keyword))
+  );
+
+  const discretionary = [...weekdayCategories, ...weekendCategories].filter(cat =>
+    !necessityKeywords.some(keyword => cat.name.toLowerCase().includes(keyword))
+  );
 
   const suggestions: string[] = [];
 
   if (savingsShortfall > 0) {
-    const discretionaryWeekday = weekdayExpenses.filter(e => e.category === 'discretionary');
-    const discretionaryWeekend = weekendExpenses.filter(e => e.category === 'discretionary');
+    const sortedDiscretionary = [...discretionary].sort((a, b) => {
+      const aMonthly = a.amount * (a.frequency === 'daily' ? 5 : 2) * 4.33;
+      const bMonthly = b.amount * (b.frequency === 'daily' ? 5 : 2) * 4.33;
+      return bMonthly - aMonthly;
+    });
 
-    if (discretionaryWeekday.length > 0) {
-      const largest = discretionaryWeekday.sort((a, b) => b.amount - a.amount)[0];
-      const reduction = Math.min(largest.amount * 0.3, savingsShortfall / 20);
-      suggestions.push(
-        `Consider reducing ${largest.name} spending by $${(reduction * 20).toFixed(0)}/month. Try cutting back 1-2 times per week.`
-      );
-    }
+    sortedDiscretionary.forEach(cat => {
+      const monthlySpend = cat.amount * (cat.frequency === 'daily' ? 5 : 2) * 4.33;
 
-    if (discretionaryWeekend.length > 0) {
-      const largest = discretionaryWeekend.sort((a, b) => b.amount - a.amount)[0];
-      const reduction = Math.min(largest.amount * 0.25, savingsShortfall / 8);
-      suggestions.push(
-        `Try reducing ${largest.name} by $${(reduction * 8).toFixed(0)}/month. Every little bit helps!`
-      );
-    }
+      if (monthlySpend > 100) {
+        const reduction = Math.min(monthlySpend * 0.3, savingsShortfall);
+        suggestions.push(
+          `Consider reducing ${cat.name} spending by $${reduction.toFixed(0)}/month. Try cutting back 1-2 times per week.`
+        );
+      } else if (monthlySpend > 50) {
+        suggestions.push(
+          `${cat.name} could be optimized. Small changes here add up to big savings!`
+        );
+      }
+    });
 
     if (suggestions.length === 0) {
       suggestions.push(
-        'Consider finding additional income sources or reviewing your fixed expenses.',
-        'Look for subscription services you can cancel or reduce.',
-        'Try the 30-day rule: wait 30 days before making non-essential purchases.'
+        'Look for small wins: pack lunch twice a week, find free entertainment, or split ride costs with friends.'
       );
     }
+
+    suggestions.push(
+      `You're $${savingsShortfall.toFixed(0)} short of your goal. Every small cut counts!`
+    );
   } else {
     suggestions.push(
-      "You're on track! Keep up the great work.",
-      'Consider investing your extra savings for long-term growth.',
-      'Build an emergency fund if you haven\'t already (3-6 months of expenses).'
+      `Great job! You're on track to save $${actualSavings.toFixed(0)}/month. Keep it up!`
     );
   }
 
   return {
-    totalExpenses,
+    monthlyIncome,
+    totalExpenses: expenses.total,
+    weekdayExpenses: expenses.weekday,
+    weekendExpenses: expenses.weekend,
+    targetSavings,
     actualSavings,
     savingsShortfall,
+    necessities,
+    discretionary,
     suggestions,
   };
 }
 
 export function calculateCompoundInterest(
-  monthlySavings: number,
+  monthlyContribution: number,
   years: number,
-  annualRate: number
+  annualRate: number = 0.05
 ): Array<{ year: number; amount: number }> {
   const monthlyRate = annualRate / 12;
-  const results = [];
+  const results: Array<{ year: number; amount: number }> = [];
 
   for (let year = 1; year <= years; year++) {
     const months = year * 12;
-    let total = 0;
+    const futureValue =
+      monthlyContribution *
+      ((Math.pow(1 + monthlyRate, months) - 1) / monthlyRate) *
+      (1 + monthlyRate);
 
-    for (let month = 1; month <= months; month++) {
-      total = (total + monthlySavings) * (1 + monthlyRate);
-    }
-
-    results.push({ year, amount: total });
+    results.push({
+      year,
+      amount: futureValue,
+    });
   }
 
   return results;
@@ -93,22 +135,22 @@ export function calculateCompoundInterest(
 export function getFinancialWisdom(situation: 'good' | 'tight' | 'struggling'): string {
   const wisdom = {
     good: [
-      "You're doing great! Your budget looks healthy and sustainable.",
-      "Excellent work! You have room to breathe and save for your goals.",
-      "Well done! Your finances are balanced and you're building wealth.",
+      "You're in a strong position! Consider automating your savings to make it effortless.",
+      "With this plan, you're building real wealth. Your future self will thank you.",
+      "You've got breathing room. Use it wisely to build an emergency fund too.",
     ],
     tight: [
-      "Your budget is workable, but there's little room for error. Let's find some cushion.",
-      "You're on the right track, but small adjustments could make a big difference.",
-      "Your plan is doable with discipline. Here are some ways to make it easier:",
+      "It's close, but doable. Stay focused and track every expense.",
+      "You're walking the line. Small optimizations will make a big difference.",
+      "Challenge yourself to find one expense you can reduce this week.",
     ],
     struggling: [
-      "Let's work together to find realistic ways to reach your savings goal.",
-      "Your goal is ambitious. Here are some practical adjustments to consider:",
-      "Building wealth takes time. Let's start with achievable changes:",
+      "Don't worry - awareness is the first step. Let's find areas to adjust.",
+      "Your goal is ambitious, but we can work together to get closer.",
+      "Remember: saving something is better than saving nothing. Start small.",
     ],
   };
 
-  const options = wisdom[situation];
-  return options[Math.floor(Math.random() * options.length)];
+  const messages = wisdom[situation];
+  return messages[Math.floor(Math.random() * messages.length)];
 }

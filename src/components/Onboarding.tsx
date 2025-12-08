@@ -26,31 +26,28 @@ import {
 } from '../utils/financialCalculations';
 
 interface OnboardingProps {
-  onComplete?: () => void;
+  onComplete: () => void;
 }
 
 const WEEKDAY_OPTIONS = [
-  { name: 'Canteen/Food', icon: <Pizza className="w-6 h-6" />, category: 'discretionary' as const },
-  { name: 'Snacks & Coffee', icon: <Coffee className="w-6 h-6" />, category: 'discretionary' as const },
-  { name: 'Commute', icon: <Bus className="w-6 h-6" />, category: 'necessity' as const },
-  { name: 'Groceries', icon: <ShoppingBag className="w-6 h-6" />, category: 'necessity' as const },
+  { name: 'Canteen/Food', icon: <Pizza className="w-6 h-6" />, category: 'discretionary' },
+  { name: 'Snacks & Coffee', icon: <Coffee className="w-6 h-6" />, category: 'discretionary' },
+  { name: 'Commute', icon: <Bus className="w-6 h-6" />, category: 'necessity' },
+  { name: 'Groceries', icon: <ShoppingBag className="w-6 h-6" />, category: 'necessity' },
 ];
 
 const WEEKEND_OPTIONS = [
-  { name: 'Hangouts/Social', icon: <Users className="w-6 h-6" />, category: 'discretionary' as const },
-  { name: 'Outings/Entertainment', icon: <Palmtree className="w-6 h-6" />, category: 'discretionary' as const },
-  { name: 'Shopping', icon: <ShoppingBag className="w-6 h-6" />, category: 'discretionary' as const },
+  { name: 'Hangouts/Social', icon: <Users className="w-6 h-6" />, category: 'discretionary' },
+  { name: 'Outings/Entertainment', icon: <Palmtree className="w-6 h-6" />, category: 'discretionary' },
+  { name: 'Shopping', icon: <ShoppingBag className="w-6 h-6" />, category: 'discretionary' },
 ];
 
-export function Onboarding({ onComplete }: OnboardingProps = {}) {
+export function Onboarding({ onComplete }: OnboardingProps) {
   const [step, setStep] = useState(1);
   const { user } = useAuth();
   const { updateProfile } = useUserProfile();
   const { getRandomQuote } = useMotivationalQuotes('onboarding');
 
-  const [aiPersona, setAiPersona] = useState('roaster');
-  const [themePreference, setThemePreference] = useState('neobrutalism');
-  const [darkMode, setDarkMode] = useState(true);
   const [monthlyIncome, setMonthlyIncome] = useState('');
   const [weekdayExpenses, setWeekdayExpenses] = useState<ExpenseCategory[]>([]);
   const [weekendExpenses, setWeekendExpenses] = useState<ExpenseCategory[]>([]);
@@ -63,15 +60,13 @@ export function Onboarding({ onComplete }: OnboardingProps = {}) {
 
   const addWeekdayExpense = (name: string) => {
     if (!weekdayExpenses.find(e => e.name === name)) {
-      const option = WEEKDAY_OPTIONS.find(o => o.name === name);
-      setWeekdayExpenses([...weekdayExpenses, { name, amount: 0, category: option?.category || 'discretionary' }]);
+      setWeekdayExpenses([...weekdayExpenses, { name, amount: 0, frequency: 'daily' }]);
     }
   };
 
   const addWeekendExpense = (name: string) => {
     if (!weekendExpenses.find(e => e.name === name)) {
-      const option = WEEKEND_OPTIONS.find(o => o.name === name);
-      setWeekendExpenses([...weekendExpenses, { name, amount: 0, category: option?.category || 'discretionary' }]);
+      setWeekendExpenses([...weekendExpenses, { name, amount: 0, frequency: 'daily' }]);
     }
   };
 
@@ -111,9 +106,6 @@ export function Onboarding({ onComplete }: OnboardingProps = {}) {
 
     await updateProfile({
       onboarding_completed: true,
-      ai_persona: aiPersona,
-      theme_preference: themePreference,
-      dark_mode: darkMode,
       monthly_income: parseFloat(monthlyIncome),
       target_savings: parseFloat(targetSavings),
       weekday_budget: weekdayExpenses as any,
@@ -121,37 +113,29 @@ export function Onboarding({ onComplete }: OnboardingProps = {}) {
       monthly_budget: budget.totalExpenses,
     });
 
-    const necessitiesTotal = [...weekdayExpenses, ...weekendExpenses]
-      .filter(e => e.category === 'necessity')
-      .reduce((sum, exp) => sum + exp.amount, 0) * 22;
-
     await supabase.from('financial_plan').upsert({
       user_id: user.id,
       monthly_income: parseFloat(monthlyIncome),
       total_expenses: budget.totalExpenses,
       suggested_savings: budget.actualSavings,
-      necessities_amount: necessitiesTotal,
-      discretionary_amount: budget.totalExpenses - necessitiesTotal,
+      necessities_amount: budget.weekdayExpenses * 0.6,
+      discretionary_amount: budget.totalExpenses - budget.weekdayExpenses * 0.6,
       suggestions: budget.suggestions,
       updated_at: new Date().toISOString(),
     });
 
-    onComplete?.();
+    onComplete();
   };
 
   const canProceed = () => {
     switch (step) {
       case 1:
-        return aiPersona !== '';
-      case 2:
-        return themePreference !== '';
-      case 3:
         return monthlyIncome && parseFloat(monthlyIncome) > 0;
-      case 4:
+      case 2:
         return weekdayExpenses.length > 0 && weekdayExpenses.every(e => e.amount > 0);
-      case 5:
+      case 3:
         return weekendExpenses.length > 0 && weekendExpenses.every(e => e.amount > 0);
-      case 6:
+      case 4:
         return targetSavings && parseFloat(targetSavings) > 0;
       default:
         return true;
@@ -162,7 +146,7 @@ export function Onboarding({ onComplete }: OnboardingProps = {}) {
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 flex items-center justify-center p-4">
       <div className="w-full max-w-3xl">
         <div className="mb-8 flex items-center justify-center gap-2">
-          {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+          {[1, 2, 3, 4, 5, 6].map(i => (
             <div
               key={i}
               className={`h-2 rounded-full transition-all duration-300 ${
@@ -182,10 +166,8 @@ export function Onboarding({ onComplete }: OnboardingProps = {}) {
             </div>
           )}
 
-          {step === 1 && <StepPersona value={aiPersona} onChange={setAiPersona} />}
-          {step === 2 && <StepTheme value={themePreference} onChange={setThemePreference} darkMode={darkMode} onDarkModeChange={setDarkMode} />}
-          {step === 3 && <Step1 value={monthlyIncome} onChange={setMonthlyIncome} />}
-          {step === 4 && (
+          {step === 1 && <Step1 value={monthlyIncome} onChange={setMonthlyIncome} />}
+          {step === 2 && (
             <Step2
               expenses={weekdayExpenses}
               onAdd={addWeekdayExpense}
@@ -193,7 +175,7 @@ export function Onboarding({ onComplete }: OnboardingProps = {}) {
               onRemove={name => removeExpense('weekday', name)}
             />
           )}
-          {step === 5 && (
+          {step === 3 && (
             <Step3
               expenses={weekendExpenses}
               onAdd={addWeekendExpense}
@@ -201,8 +183,8 @@ export function Onboarding({ onComplete }: OnboardingProps = {}) {
               onRemove={name => removeExpense('weekend', name)}
             />
           )}
-          {step === 6 && <Step4 value={targetSavings} onChange={setTargetSavings} income={parseFloat(monthlyIncome)} />}
-          {step === 7 && (
+          {step === 4 && <Step4 value={targetSavings} onChange={setTargetSavings} income={parseFloat(monthlyIncome)} />}
+          {step === 5 && (
             <Step5
               monthlyIncome={parseFloat(monthlyIncome)}
               weekdayExpenses={weekdayExpenses}
@@ -210,7 +192,7 @@ export function Onboarding({ onComplete }: OnboardingProps = {}) {
               targetSavings={parseFloat(targetSavings)}
             />
           )}
-          {step === 8 && (
+          {step === 6 && (
             <Step6
               savings={
                 parseFloat(monthlyIncome) -
@@ -234,7 +216,7 @@ export function Onboarding({ onComplete }: OnboardingProps = {}) {
                 Back
               </button>
             )}
-            {step < 8 ? (
+            {step < 6 ? (
               <button
                 onClick={() => setStep(step + 1)}
                 disabled={!canProceed()}
@@ -253,155 +235,6 @@ export function Onboarding({ onComplete }: OnboardingProps = {}) {
               </button>
             )}
           </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function StepPersona({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const personas = [
-    {
-      id: 'roaster',
-      name: 'The Roast Master',
-      emoji: '🔥',
-      description: 'Keeps it real. Will roast your spending but hypes your wins.',
-      example: '"Another latte? That\'s 1% of your Spring Break fund gone 💀"'
-    },
-    {
-      id: 'hype_man',
-      name: 'The Hype Man',
-      emoji: '🚀',
-      description: 'All positive vibes. Celebrates every win, big or small.',
-      example: '"YESSS! Look at you being responsible! That\'s what I\'m talking about! 🎉"'
-    },
-    {
-      id: 'wise_sage',
-      name: 'The Wise Sage',
-      emoji: '🧘',
-      description: 'Thoughtful wisdom. Gives you perspective without judgment.',
-      example: '"$5 today or $30 in 5 years with compound interest? The choice is yours."'
-    }
-  ];
-
-  return (
-    <div className="space-y-6">
-      <div className="text-center mb-8">
-        <div className="text-6xl mb-4 animate-bounce">🤖</div>
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">Choose your AI companion</h2>
-        <p className="text-gray-600">They'll give you feedback on your spending</p>
-      </div>
-
-      <div className="space-y-4">
-        {personas.map(persona => (
-          <button
-            key={persona.id}
-            onClick={() => onChange(persona.id)}
-            className={`w-full text-left p-6 rounded-2xl border-4 transition transform hover:scale-105 ${
-              value === persona.id
-                ? 'border-emerald-500 bg-emerald-50 shadow-xl'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
-          >
-            <div className="flex items-start gap-4">
-              <div className="text-4xl">{persona.emoji}</div>
-              <div className="flex-1">
-                <h3 className="font-bold text-xl text-gray-900 mb-1">{persona.name}</h3>
-                <p className="text-gray-600 mb-3">{persona.description}</p>
-                <div className="bg-white/80 p-3 rounded-lg border-l-4 border-purple-400">
-                  <p className="text-sm text-gray-700 italic">{persona.example}</p>
-                </div>
-              </div>
-            </div>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function StepTheme({
-  value,
-  onChange,
-  darkMode,
-  onDarkModeChange
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  darkMode: boolean;
-  onDarkModeChange: (v: boolean) => void;
-}) {
-  const themes = [
-    {
-      id: 'neobrutalism',
-      name: 'Neobrutalism',
-      description: 'Bold, high contrast, maximum impact',
-      preview: 'bg-gradient-to-br from-yellow-400 via-pink-500 to-purple-600'
-    },
-    {
-      id: 'glassmorphism',
-      name: 'Glassmorphism',
-      description: 'Sleek, frosted glass aesthetic',
-      preview: 'bg-gradient-to-br from-blue-400 via-cyan-300 to-teal-400'
-    },
-    {
-      id: 'cyberpunk',
-      name: 'Cyberpunk',
-      description: 'Neon vibes, future aesthetic',
-      preview: 'bg-gradient-to-br from-purple-900 via-pink-600 to-cyan-400'
-    },
-    {
-      id: 'default',
-      name: 'Clean & Modern',
-      description: 'Simple, clean, professional',
-      preview: 'bg-gradient-to-br from-emerald-400 via-teal-400 to-cyan-500'
-    }
-  ];
-
-  return (
-    <div className="space-y-6">
-      <div className="text-center mb-8">
-        <div className="text-6xl mb-4">🎨</div>
-        <h2 className="text-3xl font-bold text-gray-900 mb-2">Pick your vibe</h2>
-        <p className="text-gray-600">Customize how your app looks and feels</p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        {themes.map(theme => (
-          <button
-            key={theme.id}
-            onClick={() => onChange(theme.id)}
-            className={`text-left p-4 rounded-2xl border-4 transition transform hover:scale-105 ${
-              value === theme.id
-                ? 'border-emerald-500 shadow-xl'
-                : 'border-gray-200 hover:border-gray-300'
-            }`}
-          >
-            <div className={`h-24 ${theme.preview} rounded-xl mb-3 shadow-lg`}></div>
-            <h3 className="font-bold text-lg text-gray-900 mb-1">{theme.name}</h3>
-            <p className="text-sm text-gray-600">{theme.description}</p>
-          </button>
-        ))}
-      </div>
-
-      <div className="mt-6 p-4 bg-gray-100 rounded-2xl">
-        <div className="flex items-center justify-between">
-          <div>
-            <h4 className="font-semibold text-gray-900 mb-1">Dark Mode</h4>
-            <p className="text-sm text-gray-600">Save battery, look cooler</p>
-          </div>
-          <button
-            onClick={() => onDarkModeChange(!darkMode)}
-            className={`relative w-16 h-8 rounded-full transition ${
-              darkMode ? 'bg-emerald-500' : 'bg-gray-300'
-            }`}
-          >
-            <div
-              className={`absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition transform ${
-                darkMode ? 'translate-x-8' : 'translate-x-0'
-              }`}
-            />
-          </button>
         </div>
       </div>
     </div>
@@ -575,6 +408,8 @@ function Step3({
 }
 
 function Step4({ value, onChange, income }: { value: string; onChange: (v: string) => void; income: number }) {
+  const maxSavings = income * 0.5;
+
   return (
     <div className="space-y-6">
       <div className="text-center mb-8">
