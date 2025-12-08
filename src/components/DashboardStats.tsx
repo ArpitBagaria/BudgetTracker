@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { TrendingDown, Calendar, PieChart, Target } from 'lucide-react';
-import { useExpenses, Category } from '../hooks/useExpenses';
+import { useExpenses } from '../hooks/useExpenses';
 
 export function DashboardStats() {
   const { expenses, categories } = useExpenses();

@@ -50,7 +50,7 @@ export function AddExpenseModal({ isOpen, onClose, onExpenseAdded }: AddExpenseM
         is_ai_categorized: isAICategorized,
       });
 
-      await addPoints(5, 'Expense logged');
+      await addPoints(5);
       await updateStreak();
 
       if (profile && expenseData) {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Plus, Home, Target, Trophy, TrendingUp } from 'lucide-react';
 import { Header } from './Header';
 import { DashboardStats } from './DashboardStats';
@@ -6,20 +6,23 @@ import { ExpenseList } from './ExpenseList';
 import { SavingsGoals } from './SavingsGoals';
 import { Achievements } from './Achievements';
 import { AddExpenseModal } from './AddExpenseModal';
+import { Onboarding } from './Onboarding';
 import { useGamification } from '../hooks/useGamification';
 import { useExpenses } from '../hooks/useExpenses';
 import { useSavingsGoals } from '../hooks/useSavingsGoals';
+import { useUserProfile } from '../hooks/useUserProfile';
 
 type Tab = 'home' | 'goals' | 'achievements';
 
 export function Dashboard() {
   const [activeTab, setActiveTab] = useState<Tab>('home');
   const [showAddExpense, setShowAddExpense] = useState(false);
-  const [showLevelUp, setShowLevelUp] = useState(false);
-  const [newLevel, setNewLevel] = useState(0);
-  const { checkAndAwardAchievements, profile } = useGamification();
+  const [showLevelUp, _setShowLevelUp] = useState(false);
+  const [newLevel, _setNewLevel] = useState(0);
+  const { checkAndAwardAchievements } = useGamification();
   const { expenses, refetch: refetchExpenses } = useExpenses();
   const { goals } = useSavingsGoals();
+  const { profile: userProfile, loading: profileLoading } = useUserProfile();
 
   const handleExpenseAdded = async () => {
     await refetchExpenses();
@@ -31,6 +34,21 @@ export function Dashboard() {
       }, 1000);
     }
   };
+
+  if (profileLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!userProfile?.onboarding_completed) {
+    return <Onboarding />;
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50">
@@ -106,7 +124,7 @@ export function Dashboard() {
               You've reached Level {newLevel}
             </p>
             <button
-              onClick={() => setShowLevelUp(false)}
+              onClick={() => _setShowLevelUp(false)}
               className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-semibold rounded-xl hover:from-emerald-600 hover:to-cyan-600 transition"
             >
               Awesome!

@@ -26,23 +26,23 @@ import {
 } from '../utils/financialCalculations';
 
 interface OnboardingProps {
-  onComplete: () => void;
+  onComplete?: () => void;
 }
 
 const WEEKDAY_OPTIONS = [
-  { name: 'Canteen/Food', icon: <Pizza className="w-6 h-6" />, category: 'discretionary' },
-  { name: 'Snacks & Coffee', icon: <Coffee className="w-6 h-6" />, category: 'discretionary' },
-  { name: 'Commute', icon: <Bus className="w-6 h-6" />, category: 'necessity' },
-  { name: 'Groceries', icon: <ShoppingBag className="w-6 h-6" />, category: 'necessity' },
+  { name: 'Canteen/Food', icon: <Pizza className="w-6 h-6" />, category: 'discretionary' as const },
+  { name: 'Snacks & Coffee', icon: <Coffee className="w-6 h-6" />, category: 'discretionary' as const },
+  { name: 'Commute', icon: <Bus className="w-6 h-6" />, category: 'necessity' as const },
+  { name: 'Groceries', icon: <ShoppingBag className="w-6 h-6" />, category: 'necessity' as const },
 ];
 
 const WEEKEND_OPTIONS = [
-  { name: 'Hangouts/Social', icon: <Users className="w-6 h-6" />, category: 'discretionary' },
-  { name: 'Outings/Entertainment', icon: <Palmtree className="w-6 h-6" />, category: 'discretionary' },
-  { name: 'Shopping', icon: <ShoppingBag className="w-6 h-6" />, category: 'discretionary' },
+  { name: 'Hangouts/Social', icon: <Users className="w-6 h-6" />, category: 'discretionary' as const },
+  { name: 'Outings/Entertainment', icon: <Palmtree className="w-6 h-6" />, category: 'discretionary' as const },
+  { name: 'Shopping', icon: <ShoppingBag className="w-6 h-6" />, category: 'discretionary' as const },
 ];
 
-export function Onboarding({ onComplete }: OnboardingProps) {
+export function Onboarding({ onComplete }: OnboardingProps = {}) {
   const [step, setStep] = useState(1);
   const { user } = useAuth();
   const { updateProfile } = useUserProfile();
@@ -63,13 +63,15 @@ export function Onboarding({ onComplete }: OnboardingProps) {
 
   const addWeekdayExpense = (name: string) => {
     if (!weekdayExpenses.find(e => e.name === name)) {
-      setWeekdayExpenses([...weekdayExpenses, { name, amount: 0, frequency: 'daily' }]);
+      const option = WEEKDAY_OPTIONS.find(o => o.name === name);
+      setWeekdayExpenses([...weekdayExpenses, { name, amount: 0, category: option?.category || 'discretionary' }]);
     }
   };
 
   const addWeekendExpense = (name: string) => {
     if (!weekendExpenses.find(e => e.name === name)) {
-      setWeekendExpenses([...weekendExpenses, { name, amount: 0, frequency: 'daily' }]);
+      const option = WEEKEND_OPTIONS.find(o => o.name === name);
+      setWeekendExpenses([...weekendExpenses, { name, amount: 0, category: option?.category || 'discretionary' }]);
     }
   };
 
@@ -119,18 +121,22 @@ export function Onboarding({ onComplete }: OnboardingProps) {
       monthly_budget: budget.totalExpenses,
     });
 
+    const necessitiesTotal = [...weekdayExpenses, ...weekendExpenses]
+      .filter(e => e.category === 'necessity')
+      .reduce((sum, exp) => sum + exp.amount, 0) * 22;
+
     await supabase.from('financial_plan').upsert({
       user_id: user.id,
       monthly_income: parseFloat(monthlyIncome),
       total_expenses: budget.totalExpenses,
       suggested_savings: budget.actualSavings,
-      necessities_amount: budget.weekdayExpenses * 0.6,
-      discretionary_amount: budget.totalExpenses - budget.weekdayExpenses * 0.6,
+      necessities_amount: necessitiesTotal,
+      discretionary_amount: budget.totalExpenses - necessitiesTotal,
       suggestions: budget.suggestions,
       updated_at: new Date().toISOString(),
     });
 
-    onComplete();
+    onComplete?.();
   };
 
   const canProceed = () => {
@@ -569,8 +575,6 @@ function Step3({
 }
 
 function Step4({ value, onChange, income }: { value: string; onChange: (v: string) => void; income: number }) {
-  const maxSavings = income * 0.5;
-
   return (
     <div className="space-y-6">
       <div className="text-center mb-8">

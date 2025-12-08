@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useUserProfile } from './useUserProfile';
@@ -19,7 +18,7 @@ export function useGamification() {
     return totalPoints % 100;
   };
 
-  const addPoints = async (points: number, reason: string) => {
+  const addPoints = async (points: number) => {
     if (!user || !profile) return;
 
     const newTotalPoints = profile.total_points + points;
@@ -66,7 +65,7 @@ export function useGamification() {
     });
 
     if (streakIncreased && newStreak > 1) {
-      await addPoints(10, `${newStreak} day streak!`);
+      await addPoints(10);
     }
 
     return { streakIncreased, currentStreak: newStreak };
@@ -108,7 +107,7 @@ export function useGamification() {
             achievement_id: achievement.id,
           });
 
-        await addPoints(achievement.points_reward, `Achievement unlocked: ${achievement.name}`);
+        await addPoints(achievement.points_reward);
         newAchievements.push(achievement);
       }
     }
