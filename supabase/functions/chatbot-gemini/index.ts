@@ -47,7 +47,7 @@ Deno.serve(async (req: Request) => {
     const recentExpenses = await expensesResponse.json();
 
     let aiResponseData;
-    const n8nWebhookUrl = 'https://arpitbagarla.app.n8n.cloud/webhook/budget-chatbot-gemini';
+    const n8nWebhookUrl = 'https://arpitbagaria.app.n8n.cloud/webhook/budget-chatbot-gemini';
 
     try {
       const controller = new AbortController();
